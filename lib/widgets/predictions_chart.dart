@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:suicide_risk_assessment/data.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../http.dart';
 import '../models/prediction_model.dart';
-
 
 //ignore: must_be_immutable
 class PredictionsChart extends StatefulWidget {
@@ -21,7 +21,6 @@ class _PredictionsChartState extends State<PredictionsChart> {
   late Future<Predictions> data;
 
   final chartKey = GlobalKey<SfCircularChartState>();
-  final futureBuilderKey = GlobalKey();
 
   final tooltipBehavior = TooltipBehavior(
     enable: true,
@@ -46,10 +45,14 @@ class _PredictionsChartState extends State<PredictionsChart> {
   @override
   void didUpdateWidget(covariant PredictionsChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!widget.defaultChart) {
+    if (!widget.defaultChart && Data.predictionNewData) {
       setState(() {
-        data = getPrediction(widget.text);
-      });;
+        Data.predictionNewData = false;
+        data = getPrediction(widget.text).then((result) {
+          Data.disableButton = false;
+          return result;
+        });
+      });
     }
   }
 
@@ -215,12 +218,20 @@ class _PredictionsChartState extends State<PredictionsChart> {
             ),
           )
         : FutureBuilder<Predictions>(
-            key: futureBuilderKey,
             future: data,
             builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 460,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.orange,
+                    ),
+                  ),
+                );
+              }
               if (snapshot.hasData) {
                 final predictions = snapshot.data;
-
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 30),
                   child: Container(

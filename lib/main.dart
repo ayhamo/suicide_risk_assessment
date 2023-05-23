@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:suicide_risk_assessment/Widgets/predictions_chart.dart';
+import 'package:suicide_risk_assessment/widgets/keywords_chart.dart';
 import 'package:suicide_risk_assessment/widgets/responsive.dart';
 
+import 'data.dart';
 import 'http.dart';
 
 void main() {
@@ -31,7 +33,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
   final _textController = TextEditingController();
 
   bool _isMenuVisible = false;
@@ -125,9 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             overlayColor:
                                 MaterialStateProperty.all(Colors.transparent),
                           ),
-                          onPressed: () {
-
-                          },
+                          onPressed: () {},
                           child: const Text("Predict"),
                         ),
                         TextButton(
@@ -191,9 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               overlayColor:
                                   MaterialStateProperty.all(Colors.transparent),
                             ),
-                            onPressed: () {
-
-                            },
+                            onPressed: () {},
                             child: const Text("Predict"),
                           ),
                           const SizedBox(height: 10),
@@ -244,7 +241,7 @@ class _MyHomePageState extends State<MyHomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Padding(
-                padding:  EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                     vertical: 20, horizontal: mainHorizontalPadding),
                 child: TextField(
                   decoration: InputDecoration(
@@ -269,8 +266,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               Padding(
-                padding:  EdgeInsets.symmetric(
-                    horizontal: mainHorizontalPadding),
+                padding:
+                    EdgeInsets.symmetric(horizontal: mainHorizontalPadding),
                 child: Row(
                   children: [
                     Expanded(
@@ -285,7 +282,11 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           onPressed: () {
                             setState(() {
-                              defaultChartFlag = false;
+                              if (!Data.disableButton) {
+                                defaultChartFlag = false;
+                                Data.disableButton = true;
+                                Data.predictionNewData = true;
+                              }
                             });
                           },
                           child: const Text(
@@ -316,7 +317,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-               Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(
                     vertical: 20, horizontal: mainHorizontalPadding),
                 child: const Divider(thickness: 1),
@@ -329,9 +330,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     fontWeight: FontWeight.bold,
                     letterSpacing: 3),
               ),
-              PredictionsChart(text: _textController.text,defaultChart: defaultChartFlag),
+              PredictionsChart(
+                  text: _textController.text, defaultChart: defaultChartFlag),
               const SizedBox(height: 30),
-              Text("TEST")
+              Text("TEST"),
+              //KeywordsChart(),
+              //getOccurrences(),
             ],
           ),
         ),

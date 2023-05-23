@@ -10,7 +10,6 @@ import 'Models/keywords_model.dart';
 const baseUrl = 'http://127.0.0.1:5000/';
 late String endPoint;
 
-
 Future<String> loadModels() async {
   endPoint = 'load_models';
   final url = '$baseUrl$endPoint';
@@ -19,7 +18,8 @@ Future<String> loadModels() async {
   if (response.statusCode == 200) {
     final data = jsonDecode(response.body);
     if (data['message'] == "Critical Server problem occurred" ||
-        data['message'] == "Models already loaded") {
+        data['message'] == "Models already loaded" ||
+        data['message'] == "Models loaded successfully") {
       return data['message'];
     } else {
       return data;
@@ -50,7 +50,6 @@ Future<Predictions> getPrediction(String value) async {
     throw Exception('failed to reach server');
   }
 }
-
 
 Future<Keywords> getKeywordExtraction() async {
   endPoint = 'keyword_extraction';
