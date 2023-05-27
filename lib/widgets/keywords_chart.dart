@@ -12,7 +12,6 @@ class KeywordsChart extends StatefulWidget {
 }
 
 class _KeywordsChartState extends State<KeywordsChart> {
-
   late Future<Keywords> data;
 
   @override
@@ -26,7 +25,8 @@ class _KeywordsChartState extends State<KeywordsChart> {
     return FutureBuilder<Keywords>(
         future: data,
         builder: (context, snapshot) {
-          if (snapshot.hasData) {  // contains a non-null data value
+          if (snapshot.hasData) {
+            // contains a non-null data value
             final keywordList = snapshot.data!.keywords.entries;
 
             // Return chart widget
@@ -35,7 +35,8 @@ class _KeywordsChartState extends State<KeywordsChart> {
                 series: [
                   BarSeries<MapEntry<String, double>, String>(
                     name: 'Keywords',
-                    dataSource: keywordList.toList()..sort((a, b) => a.value.compareTo(b.value)),
+                    dataSource: keywordList.toList()
+                      ..sort((a, b) => a.value.compareTo(b.value)),
                     xValueMapper: (entry, _) => entry.key,
                     yValueMapper: (entry, _) => entry.value,
                   ),
@@ -47,17 +48,17 @@ class _KeywordsChartState extends State<KeywordsChart> {
                   tooltipSettings: const InteractiveTooltip(
                     format: 'point.x : point.y',
                   ),
-                )
-            );
-
+                ));
           } else if (snapshot.hasError) {
-            return Text('${snapshot.error}');
+            return Text('An error occurred\n${snapshot.error}');
           } else {
-            return const Center(
-              child: CircularProgressIndicator(),
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 50, vertical: 50),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
             );
           }
-        }
-    );
+        });
   }
 }

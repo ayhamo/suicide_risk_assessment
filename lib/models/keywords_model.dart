@@ -6,4 +6,3 @@ class Keywords {
   Keywords.fromJson(Map<String, dynamic> json)
       : this(keywords: Map<String, double>.from(json));
 }
-

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:suicide_risk_assessment/widgets/responsive.dart';
 import 'package:suicide_risk_assessment/Widgets/predictions_chart.dart';
 import 'package:suicide_risk_assessment/widgets/keywords_chart.dart';
-import 'package:suicide_risk_assessment/widgets/responsive.dart';
+import 'package:suicide_risk_assessment/widgets/wordcloud.dart';
 
-import 'data.dart';
 import 'http.dart';
+import 'models/prediction_model.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,9 +35,27 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _keywordsDividerKey = GlobalKey();
+  final GlobalKey _matrixDividerKey = GlobalKey();
 
   bool _isMenuVisible = false;
-  bool defaultChartFlag = true;
+
+  List<Predictions> predictionsList = [];
+
+  //prediction chart placeholder
+  bool defaultPieChartFlag = true;
+
+  //prevent multiple request abuse, wait till first request ends
+  bool disableButton = false;
+
+  //used to prevent didUpdateWidget in predictions_chart from requesting
+  //server(rebuild) when widget updates (screen size changes)
+  bool predictNewData = false;
+
+  //traversing data
+  int currentArrIndex = -1;
+  Predictions? arrData;
 
   final double mainHorizontalPadding = 50;
   late FToast fToast;
@@ -126,7 +145,12 @@ class _MyHomePageState extends State<MyHomePage> {
                             overlayColor:
                                 MaterialStateProperty.all(Colors.transparent),
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            // Scroll to top of page
+                            _scrollController.animateTo(0.0,
+                                duration: const Duration(milliseconds: 500),
+                                curve: Curves.easeInOut);
+                          },
                           child: const Text("Predict"),
                         ),
                         TextButton(
@@ -142,7 +166,12 @@ class _MyHomePageState extends State<MyHomePage> {
                             overlayColor:
                                 MaterialStateProperty.all(Colors.transparent),
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            Scrollable.ensureVisible(
+                                _keywordsDividerKey.currentContext!,
+                                duration: const Duration(milliseconds: 500),
+                                curve: Curves.easeInOut);
+                          },
                           child: const Text("Keywords\nExtracted"),
                         ),
                         TextButton(
@@ -158,7 +187,12 @@ class _MyHomePageState extends State<MyHomePage> {
                             overlayColor:
                                 MaterialStateProperty.all(Colors.transparent),
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            Scrollable.ensureVisible(
+                                _matrixDividerKey.currentContext!,
+                                duration: const Duration(milliseconds: 500),
+                                curve: Curves.easeInOut);
+                          },
                           child: const Text("Correlation\nAnalysis"),
                         ),
                       ],
@@ -173,7 +207,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Column(
-                        //TODO Add slide in/out animation https://komprehend.io/text-classification
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Divider(),
@@ -190,7 +223,15 @@ class _MyHomePageState extends State<MyHomePage> {
                               overlayColor:
                                   MaterialStateProperty.all(Colors.transparent),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              setState(() {
+                                _isMenuVisible = false;
+                              });
+
+                              _scrollController.animateTo(0.0,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeInOut);
+                            },
                             child: const Text("Predict"),
                           ),
                           const SizedBox(height: 10),
@@ -207,7 +248,16 @@ class _MyHomePageState extends State<MyHomePage> {
                               overlayColor:
                                   MaterialStateProperty.all(Colors.transparent),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              setState(() {
+                                _isMenuVisible = false;
+                              });
+
+                              Scrollable.ensureVisible(
+                                  _keywordsDividerKey.currentContext!,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeInOut);
+                            },
                             child: const Text("Keywords Extracted"),
                           ),
                           const SizedBox(height: 10),
@@ -224,7 +274,16 @@ class _MyHomePageState extends State<MyHomePage> {
                               overlayColor:
                                   MaterialStateProperty.all(Colors.transparent),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              setState(() {
+                                _isMenuVisible = false;
+                              });
+
+                              Scrollable.ensureVisible(
+                                  _matrixDividerKey.currentContext!,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeInOut);
+                            },
                             child: const Text("Correlation Analysis"),
                           ),
                           const SizedBox(height: 10),
@@ -237,6 +296,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   preferredSize: Size(0, 0), child: SizedBox()),
         ),
         body: SingleChildScrollView(
+          controller: _scrollController,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -282,10 +342,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           onPressed: () {
                             setState(() {
-                              if (!Data.disableButton) {
-                                defaultChartFlag = false;
-                                Data.disableButton = true;
-                                Data.predictionNewData = true;
+                              if (!disableButton) {
+                                defaultPieChartFlag = false;
+                                disableButton = true;
+                                predictNewData = true;
+
+                                //stop the traversal
+                                arrData = null;
                               }
                             });
                           },
@@ -298,25 +361,45 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(width: 20),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back,
-                        color: Colors.orange,
+                        color: currentArrIndex == 0 || currentArrIndex == -1
+                            ? Colors.grey
+                            : Colors.orange,
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        setState(() {
+                          if (currentArrIndex > 0) {
+                            currentArrIndex--;
+                            arrData = predictionsList[currentArrIndex];
+                          }
+                        });
+                      },
                       iconSize: 40,
                     ),
                     const SizedBox(width: 20),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_forward,
-                        color: Colors.orange,
+                        color: currentArrIndex == predictionsList.length - 1
+                            ? Colors.grey
+                            : Colors.orange,
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        setState(() {
+                          if (currentArrIndex < predictionsList.length - 1) {
+                            currentArrIndex++;
+                            arrData = predictionsList[currentArrIndex];
+                          }
+                        });
+                      },
                       iconSize: 40,
                     ),
                   ],
                 ),
               ),
+
+              //TODO Add Export ( to excel ) and Import (from excel and save in array) buttons
               Padding(
                 padding: EdgeInsets.symmetric(
                     vertical: 20, horizontal: mainHorizontalPadding),
@@ -326,15 +409,128 @@ class _MyHomePageState extends State<MyHomePage> {
                 'PREDICTION',
                 style: TextStyle(
                     color: Colors.grey,
-                    fontSize: 15,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 3),
               ),
               PredictionsChart(
-                  text: _textController.text, defaultChart: defaultChartFlag),
-              const SizedBox(height: 30),
-              Text("TEST"),
-              //KeywordsChart(),
+                text: _textController.text,
+                defaultChart: defaultPieChartFlag,
+                arrData: arrData,
+                onArrUpdate: (result) {
+                  setState(() {
+                    //add the new prediction to the traversal list
+                    predictionsList.add(result);
+
+                    //make button enabled
+                    disableButton = false;
+
+                    //no more predicting, so stop updating the future on widget update
+                    predictNewData = false;
+
+                    //increment index to match last prediction
+                    currentArrIndex = predictionsList.length - 1;
+                  });
+                },
+                predictNewData: predictNewData,
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                    vertical: 10, horizontal: mainHorizontalPadding),
+                child: Divider(key: _keywordsDividerKey, thickness: 1),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  'DATASET KEYWORDS EXTRACTION',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3),
+                ),
+              ),
+              Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 60),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.5),
+                        spreadRadius: 1,
+                        blurRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Column(
+                    children: [
+                      KeywordsChart(),
+                      Divider(),
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'WORD CLOUD',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 3),
+                        ),
+                      ),
+                      WordCloud(),
+                    ],
+                  )),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                    vertical: 10, horizontal: mainHorizontalPadding),
+                child: Divider(key: _matrixDividerKey, thickness: 1),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 20),
+                child: Text(
+                  'DATASET CORRELATION ANALYSIS',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3),
+                ),
+              ),
+              ResponsiveWidget.isSmallScreen(context)
+                  ? const SizedBox()
+                  : const Text("(hold CTRL while zooming)",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 20,
+                      )),
+              Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 60, vertical: 30),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.5),
+                        spreadRadius: 1,
+                        blurRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: InteractiveViewer(
+                    boundaryMargin: const EdgeInsets.all(10.0),
+                    minScale: 0.1,
+                    maxScale: 2,
+                    child: getOccurrences(),
+                  )),
+
               //getOccurrences(),
             ],
           ),

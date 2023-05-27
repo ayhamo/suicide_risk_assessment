@@ -11,8 +11,8 @@ class Predictions {
 
   Predictions.fromJson(Map<String, dynamic> json)
       : this(
-    emotions: Map<String, double>.from(json['Emotions']),
-    sentiment: Map<String, double>.from(json['Sentiment']),
-    suicideRisk: json['Suicide_Risk'],
-  );
+          emotions: Map<String, double>.from(json['Emotions']),
+          sentiment: Map<String, double>.from(json['Sentiment']),
+          suicideRisk: json['Suicide_Risk'],
+        );
 }
