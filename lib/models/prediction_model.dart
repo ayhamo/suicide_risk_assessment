@@ -15,4 +15,9 @@ class Predictions {
           sentiment: Map<String, double>.from(json['Sentiment']),
           suicideRisk: json['Suicide_Risk'],
         );
+
+  @override
+  String toString() {
+    return 'Predictions{emotions: $emotions, sentiment: $sentiment, suicideRisk: $suicideRisk}';
+  }
 }

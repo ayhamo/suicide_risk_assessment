@@ -1,16 +1,12 @@
-# suicide_risk_assessment
+# Suicide Risk Assessment Program
 
-suicide risk assessment program using A.I
+suicide risk assessment  using A.I to assess given text and give predictions
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+and represent the predictions in an appropriate charts and formats
 
-A few resources to get you started if this is your first Flutter project:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+*This program was made as a part of my Graduation Thesis project ( Front End )
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Online Demo ( No Back-End )
+- TBD

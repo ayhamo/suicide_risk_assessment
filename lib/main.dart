@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:excel/excel.dart' as excel;
+import 'dart:html' as html;
+
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:suicide_risk_assessment/widgets/responsive.dart';
 import 'package:suicide_risk_assessment/Widgets/predictions_chart.dart';
 import 'package:suicide_risk_assessment/widgets/keywords_chart.dart';
-import 'package:suicide_risk_assessment/widgets/wordcloud.dart';
 
 import 'http.dart';
 import 'models/prediction_model.dart';
@@ -41,7 +43,34 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool _isMenuVisible = false;
 
-  List<Predictions> predictionsList = [];
+  List<Predictions> predictionsList = [
+    Predictions(
+      emotions: {
+        'anger': 0.001,
+        'disgust': 0,
+        'fear': 0,
+        'hopefullness': 0,
+        'hopelessness': 0.001,
+        'joy': 0,
+        'sadness': 0.004
+      },
+      sentiment: {'Neg': 0.188, 'Pos': 0.001},
+      suicideRisk: 'depression',
+    ),
+    Predictions(
+      emotions: {
+        'anger': 0.001,
+        'disgust': 0.4,
+        'fear': 0.6,
+        'hopefullness': 0,
+        'hopelessness': 0.001,
+        'joy': 0.3,
+        'sadness': 0.004
+      },
+      sentiment: {'Neg': 0.188, 'Pos': 0.001},
+      suicideRisk: 'depression',
+    )
+  ];
 
   //prediction chart placeholder
   bool defaultPieChartFlag = true;
@@ -335,22 +364,25 @@ class _MyHomePageState extends State<MyHomePage> {
                         height: 50,
                         child: TextButton(
                           style: TextButton.styleFrom(
-                            backgroundColor: Colors.black,
+                            backgroundColor: disableButton
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.black,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.0),
                             ),
                           ),
                           onPressed: () {
-                            setState(() {
-                              if (!disableButton) {
+                            //TODO Add no char error and min char check
+                            if (!disableButton) {
+                              setState(() {
                                 defaultPieChartFlag = false;
                                 disableButton = true;
                                 predictNewData = true;
 
-                                //stop the traversal
+                                //stop the traversal and go to new prediction
                                 arrData = null;
-                              }
-                            });
+                              });
+                            }
                           },
                           child: const Text(
                             'Predict Risk',
@@ -398,8 +430,59 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-
-              //TODO Add Export ( to excel ) and Import (from excel and save in array) buttons
+              const SizedBox(height: 15),
+              Padding(
+                padding:
+                    EdgeInsets.symmetric(horizontal: mainHorizontalPadding),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                          ),
+                          onPressed: () {},
+                          child: const Text(
+                            //TODO check import
+                            'Import Data',
+                            style: TextStyle(color: Colors.white, fontSize: 20),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: predictionsList.isEmpty
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                          ),
+                          onPressed: () {
+                            predictionsList.isEmpty
+                                ? null
+                                : exportPredictions(predictionsList);
+                          },
+                          child: const Text(
+                            'Export Data',
+                            style: TextStyle(color: Colors.white, fontSize: 20),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Padding(
                 padding: EdgeInsets.symmetric(
                     vertical: 20, horizontal: mainHorizontalPadding),
@@ -414,26 +497,34 @@ class _MyHomePageState extends State<MyHomePage> {
                     letterSpacing: 3),
               ),
               PredictionsChart(
-                text: _textController.text,
-                defaultChart: defaultPieChartFlag,
-                arrData: arrData,
-                onArrUpdate: (result) {
-                  setState(() {
-                    //add the new prediction to the traversal list
-                    predictionsList.add(result);
+                  text: _textController.text,
+                  defaultChart: defaultPieChartFlag,
+                  arrData: arrData,
+                  predictNewData: predictNewData,
+                  onArrUpdate: (result) {
+                    setState(() {
+                      //add the new prediction to the traversal list
+                      predictionsList.add(result);
 
-                    //make button enabled
-                    disableButton = false;
+                      //make button enabled
+                      disableButton = false;
 
-                    //no more predicting, so stop updating the future on widget update
-                    predictNewData = false;
+                      //no more predicting, so stop updating the future on widget update
+                      predictNewData = false;
 
-                    //increment index to match last prediction
-                    currentArrIndex = predictionsList.length - 1;
-                  });
-                },
-                predictNewData: predictNewData,
-              ),
+                      //increment index to match last prediction
+                      currentArrIndex = predictionsList.length - 1;
+                    });
+                  },
+                  updateButton: () {
+                    setState(() {
+                      //make button enabled
+                      disableButton = false;
+
+                      //no more predicting, so stop updating the future on widget update
+                      predictNewData = false;
+                    });
+                  }),
               Padding(
                 padding: EdgeInsets.symmetric(
                     vertical: 10, horizontal: mainHorizontalPadding),
@@ -466,11 +557,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ],
                   ),
-                  child: const Column(
+                  child: Column(
                     children: [
-                      KeywordsChart(),
-                      Divider(),
-                      Padding(
+                      const KeywordsChart(),
+                      const Divider(),
+                      const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
                         child: Text(
                           'WORD CLOUD',
@@ -481,7 +572,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               letterSpacing: 3),
                         ),
                       ),
-                      WordCloud(),
+                      getKeywordsWordcloud(),
                     ],
                   )),
               Padding(
@@ -508,6 +599,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         fontSize: 20,
                       )),
               Container(
+                  width: double.infinity,
                   margin:
                       const EdgeInsets.symmetric(horizontal: 60, vertical: 30),
                   padding:
@@ -524,32 +616,123 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ],
                   ),
-                  child: InteractiveViewer(
-                    boundaryMargin: const EdgeInsets.all(10.0),
-                    minScale: 0.1,
-                    maxScale: 2,
+                  child: Center(
                     child: getOccurrences(),
                   )),
-
-              //getOccurrences(),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-Widget toast(String string) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(25.0),
-      color: const Color(0xFF656565),
-    ),
-    child: Text(
-      string,
-      style: const TextStyle(color: Colors.white),
-    ),
-  );
+  void exportPredictions(List<Predictions> predictionsList) async {
+    // Create a new Excel object
+    final excelObject = excel.Excel.createExcel();
+
+    // Get a reference to the default "Sheet1"
+    const sheet = 'Sheet1';
+
+    // Add headers to the first row of the sheet
+    excelObject.updateCell(sheet, excel.CellIndex.indexByString("A1"), 'Text');
+    excelObject.updateCell(
+        sheet, excel.CellIndex.indexByString("B1"), 'Suicide Risk');
+    excelObject.updateCell(
+        sheet, excel.CellIndex.indexByString("C1"), 'Positive');
+    excelObject.updateCell(
+        sheet, excel.CellIndex.indexByString("D1"), 'Negative');
+    excelObject.updateCell(sheet, excel.CellIndex.indexByString("E1"), 'Anger');
+    excelObject.updateCell(sheet, excel.CellIndex.indexByString("F1"), 'Fear');
+    excelObject.updateCell(
+        sheet, excel.CellIndex.indexByString("G1"), 'Hopefullness');
+    excelObject.updateCell(
+        sheet, excel.CellIndex.indexByString("H1"), 'Hopelessness');
+    excelObject.updateCell(sheet, excel.CellIndex.indexByString("I1"), 'Joy');
+    excelObject.updateCell(
+        sheet, excel.CellIndex.indexByString("J1"), 'Sadness');
+    excelObject.updateCell(
+        sheet, excel.CellIndex.indexByString("K1"), 'Disgust');
+
+    // Add data to the sheet
+    for (int i = 0; i < predictionsList.length; i++) {
+      final prediction = predictionsList[i];
+      final row = i + 1;
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row),
+          'test text');
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row),
+          prediction.suicideRisk);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row),
+          prediction.sentiment['Pos']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row),
+          prediction.sentiment['Neg']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row),
+          prediction.emotions['anger']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row),
+          prediction.emotions['fear']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row),
+          prediction.emotions['hopefullness']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: row),
+          prediction.emotions['hopelessness']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: row),
+          prediction.emotions['joy']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row),
+          prediction.emotions['sadness']);
+      excelObject.updateCell(
+          sheet,
+          excel.CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: row),
+          prediction.emotions['disgust']);
+    }
+
+    // Encode the Excel object as a Uint8List
+    final bytes = excelObject.encode();
+    if (bytes != null) {
+      // Create a new Blob from the Uint8List
+      final blob = html.Blob([bytes],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+      final now = DateTime.now();
+      final fileName =
+          '${now.day}_${now.month}_${now.hour}_${now.minute}_risk_result.xlsx';
+
+      // Create a new AnchorElement with a download attribute
+      html.AnchorElement()
+        ..href = html.Url.createObjectUrlFromBlob(blob)
+        ..download = fileName
+        ..click();
+    }
+  }
+
+  Widget toast(String string) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25.0),
+        color: const Color(0xFF656565),
+      ),
+      child: Text(
+        string,
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
 }

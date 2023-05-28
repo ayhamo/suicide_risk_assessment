@@ -9,19 +9,25 @@ class PredictionsChart extends StatefulWidget {
   String text;
   bool defaultChart;
   Predictions? arrData;
-  bool
-      predictNewData; //flag used to prevent future from update on widget update
 
+  //flag used to prevent future from update on widget update
+  bool predictNewData;
+
+  //call back to update variables in main
   final Function(Predictions) onArrUpdate;
 
-  PredictionsChart(
-      {Key? key,
-      required this.text,
-      required this.defaultChart,
-      required this.arrData,
-      required this.onArrUpdate,
-      required this.predictNewData})
-      : super(key: key);
+  //call back to update predict risk button if no internet
+  final VoidCallback updateButton; //
+
+  PredictionsChart({
+    Key? key,
+    required this.text,
+    required this.defaultChart,
+    required this.arrData,
+    required this.predictNewData,
+    required this.onArrUpdate,
+    required this.updateButton,
+  }) : super(key: key);
 
   @override
   State<PredictionsChart> createState() => _PredictionsChartState();
@@ -53,14 +59,16 @@ class _PredictionsChartState extends State<PredictionsChart> {
   void didUpdateWidget(covariant PredictionsChart oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!widget.defaultChart && widget.predictNewData) {
+      Predictions? value;
+
       data = getPrediction(widget.text).then((result) {
-        //add the new data to the array
-        //Data.predictionsList.add(result);
-
         //callback to update variables in main
-        widget.onArrUpdate(result);
-
+        value = result;
+        widget.onArrUpdate(value!);
         return result;
+      }).catchError((e) {
+        widget.updateButton();
+        throw e;
       });
     }
   }
@@ -421,11 +429,12 @@ class _PredictionsChartState extends State<PredictionsChart> {
                 ),
               );
             } else if (snapshot.hasError) {
-              return const SizedBox(
-                height: 460,
+              return Container(
+                margin: const EdgeInsets.only(top: 40),
+                height: 70,
                 child: Text(
-                  '\nServer Error have occurred',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  'Server Error have occurred\n    ${snapshot.error}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               );
             } else {
