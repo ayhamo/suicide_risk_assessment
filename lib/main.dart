@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:excel/excel.dart' as excel;
-import 'dart:html' as html;
 
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:suicide_risk_assessment/widgets/responsive.dart';
 import 'package:suicide_risk_assessment/Widgets/predictions_chart.dart';
 import 'package:suicide_risk_assessment/widgets/keywords_chart.dart';
 
+import 'export_manager.dart';
 import 'http.dart';
 import 'models/prediction_model.dart';
 
@@ -37,46 +36,25 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _textController = TextEditingController();
+  bool _textValidate = false;
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _keywordsDividerKey = GlobalKey();
   final GlobalKey _matrixDividerKey = GlobalKey();
 
   bool _isMenuVisible = false;
 
-  List<Predictions> predictionsList = [
-    Predictions(
-      emotions: {
-        'anger': 0.001,
-        'disgust': 0,
-        'fear': 0,
-        'hopefullness': 0,
-        'hopelessness': 0.001,
-        'joy': 0,
-        'sadness': 0.004
-      },
-      sentiment: {'Neg': 0.188, 'Pos': 0.001},
-      suicideRisk: 'depression',
-    ),
-    Predictions(
-      emotions: {
-        'anger': 0.001,
-        'disgust': 0.4,
-        'fear': 0.6,
-        'hopefullness': 0,
-        'hopelessness': 0.001,
-        'joy': 0.3,
-        'sadness': 0.004
-      },
-      sentiment: {'Neg': 0.188, 'Pos': 0.001},
-      suicideRisk: 'depression',
-    )
-  ];
+  List<Predictions> predictionsList = [];
+
+  //Store texts for export
+  List<String> predictionTextList = [];
 
   //prediction chart placeholder
   bool defaultPieChartFlag = true;
 
   //prevent multiple request abuse, wait till first request ends
   bool disableButton = false;
+
+  bool disableImportButton = false;
 
   //used to prevent didUpdateWidget in predictions_chart from requesting
   //server(rebuild) when widget updates (screen size changes)
@@ -201,7 +179,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 duration: const Duration(milliseconds: 500),
                                 curve: Curves.easeInOut);
                           },
-                          child: const Text("Keywords\nExtracted"),
+                          child: const Text(
+                              textAlign: TextAlign.center,
+                              "Keywords\nExtracted"),
                         ),
                         TextButton(
                           style: ButtonStyle(
@@ -222,7 +202,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 duration: const Duration(milliseconds: 500),
                                 curve: Curves.easeInOut);
                           },
-                          child: const Text("Correlation\nAnalysis"),
+                          child: const Text(
+                              textAlign: TextAlign.center,
+                              "Correlation\nAnalysis"),
                         ),
                       ],
                     ),
@@ -330,11 +312,14 @@ class _MyHomePageState extends State<MyHomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Padding(
-                padding: EdgeInsets.symmetric(
-                    vertical: 20, horizontal: mainHorizontalPadding),
+                padding: EdgeInsets.fromLTRB(
+                    mainHorizontalPadding, 20, mainHorizontalPadding, 10),
                 child: TextField(
                   decoration: InputDecoration(
                     labelText: 'Review Text',
+                    errorText: _textValidate
+                        ? 'Review Text Can\'t Be Less Than 5 Characters'
+                        : null,
                     alignLabelWithHint: true,
                     fillColor: Colors.transparent,
                     border: OutlineInputBorder(
@@ -354,6 +339,13 @@ class _MyHomePageState extends State<MyHomePage> {
                   maxLines: 8,
                 ),
               ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: Text(
+                    "* The more text you provide the more accurate results you will get.",
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
               Padding(
                 padding:
                     EdgeInsets.symmetric(horizontal: mainHorizontalPadding),
@@ -372,17 +364,22 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                           onPressed: () {
-                            //TODO Add no char error and min char check
-                            if (!disableButton) {
-                              setState(() {
-                                defaultPieChartFlag = false;
-                                disableButton = true;
-                                predictNewData = true;
+                            setState(() {
+                              if (_textController.text.length < 5) {
+                                _textValidate = true;
+                              } else {
+                                _textValidate = false;
+                                if (!disableButton) {
+                                  //all flags are explained above
+                                  defaultPieChartFlag = false;
+                                  disableButton = true;
+                                  predictNewData = true;
 
-                                //stop the traversal and go to new prediction
-                                arrData = null;
-                              });
-                            }
+                                  //stop the traversal and go to new prediction
+                                  arrData = null;
+                                }
+                              }
+                            });
                           },
                           child: const Text(
                             'Predict Risk',
@@ -404,6 +401,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           if (currentArrIndex > 0) {
                             currentArrIndex--;
                             arrData = predictionsList[currentArrIndex];
+                            _textController.text =
+                                predictionTextList[currentArrIndex];
                           }
                         });
                       },
@@ -422,6 +421,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           if (currentArrIndex < predictionsList.length - 1) {
                             currentArrIndex++;
                             arrData = predictionsList[currentArrIndex];
+                            _textController.text =
+                                predictionTextList[currentArrIndex];
                           }
                         });
                       },
@@ -441,14 +442,63 @@ class _MyHomePageState extends State<MyHomePage> {
                         height: 50,
                         child: TextButton(
                           style: TextButton.styleFrom(
-                            backgroundColor: Colors.black,
+                            backgroundColor: disableImportButton
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.black,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.0),
                             ),
                           ),
-                          onPressed: () {},
+                          onPressed: () async {
+                            if (disableImportButton) {
+                              null;
+                            }
+                            setState(() {
+                              disableImportButton = true;
+                            });
+                            await importPredictions().then((result) {
+                              var (a, b) = result;
+                              predictionTextList = a; //.addAll(a);
+                              predictionsList = b;
+                              setState(() {
+                                if (predictionsList.isNotEmpty) {
+                                  arrData = predictionsList[0];
+                                  currentArrIndex = 0;
+                                  _textController.text = predictionTextList[0];
+                                }
+                                disableImportButton = false;
+                              });
+                            }).catchError((e) {
+                              setState(() {
+                                disableImportButton = false;
+                              });
+                              showDialog<void>(
+                                  context: context,
+                                  barrierDismissible: true,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text(
+                                        'ALERT',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                      content: Text(
+                                          textAlign: TextAlign.center,
+                                          "Error reading excel file\n$e",
+                                          style: const TextStyle(fontSize: 17)),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          child: const Text('OK'),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  });
+                            });
+                          },
                           child: const Text(
-                            //TODO check import
                             'Import Data',
                             style: TextStyle(color: Colors.white, fontSize: 20),
                           ),
@@ -468,10 +518,12 @@ class _MyHomePageState extends State<MyHomePage> {
                               borderRadius: BorderRadius.circular(10.0),
                             ),
                           ),
-                          onPressed: () {
-                            predictionsList.isEmpty
+                          onPressed: () async {
+                            predictionsList
+                                    .isEmpty //no need to check the text list as both are updated in same place on a callback
                                 ? null
-                                : exportPredictions(predictionsList);
+                                : exportPredictions(
+                                    predictionTextList, predictionsList);
                           },
                           child: const Text(
                             'Export Data',
@@ -503,6 +555,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   predictNewData: predictNewData,
                   onArrUpdate: (result) {
                     setState(() {
+                      //add the prediction text to the list
+                      predictionTextList.add(_textController.text);
+
                       //add the new prediction to the traversal list
                       predictionsList.add(result);
 
@@ -624,102 +679,6 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     );
-  }
-
-  void exportPredictions(List<Predictions> predictionsList) async {
-    // Create a new Excel object
-    final excelObject = excel.Excel.createExcel();
-
-    // Get a reference to the default "Sheet1"
-    const sheet = 'Sheet1';
-
-    // Add headers to the first row of the sheet
-    excelObject.updateCell(sheet, excel.CellIndex.indexByString("A1"), 'Text');
-    excelObject.updateCell(
-        sheet, excel.CellIndex.indexByString("B1"), 'Suicide Risk');
-    excelObject.updateCell(
-        sheet, excel.CellIndex.indexByString("C1"), 'Positive');
-    excelObject.updateCell(
-        sheet, excel.CellIndex.indexByString("D1"), 'Negative');
-    excelObject.updateCell(sheet, excel.CellIndex.indexByString("E1"), 'Anger');
-    excelObject.updateCell(sheet, excel.CellIndex.indexByString("F1"), 'Fear');
-    excelObject.updateCell(
-        sheet, excel.CellIndex.indexByString("G1"), 'Hopefullness');
-    excelObject.updateCell(
-        sheet, excel.CellIndex.indexByString("H1"), 'Hopelessness');
-    excelObject.updateCell(sheet, excel.CellIndex.indexByString("I1"), 'Joy');
-    excelObject.updateCell(
-        sheet, excel.CellIndex.indexByString("J1"), 'Sadness');
-    excelObject.updateCell(
-        sheet, excel.CellIndex.indexByString("K1"), 'Disgust');
-
-    // Add data to the sheet
-    for (int i = 0; i < predictionsList.length; i++) {
-      final prediction = predictionsList[i];
-      final row = i + 1;
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row),
-          'test text');
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row),
-          prediction.suicideRisk);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row),
-          prediction.sentiment['Pos']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row),
-          prediction.sentiment['Neg']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row),
-          prediction.emotions['anger']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row),
-          prediction.emotions['fear']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row),
-          prediction.emotions['hopefullness']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: row),
-          prediction.emotions['hopelessness']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: row),
-          prediction.emotions['joy']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row),
-          prediction.emotions['sadness']);
-      excelObject.updateCell(
-          sheet,
-          excel.CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: row),
-          prediction.emotions['disgust']);
-    }
-
-    // Encode the Excel object as a Uint8List
-    final bytes = excelObject.encode();
-    if (bytes != null) {
-      // Create a new Blob from the Uint8List
-      final blob = html.Blob([bytes],
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-
-      final now = DateTime.now();
-      final fileName =
-          '${now.day}_${now.month}_${now.hour}_${now.minute}_risk_result.xlsx';
-
-      // Create a new AnchorElement with a download attribute
-      html.AnchorElement()
-        ..href = html.Url.createObjectUrlFromBlob(blob)
-        ..download = fileName
-        ..click();
-    }
   }
 
   Widget toast(String string) {

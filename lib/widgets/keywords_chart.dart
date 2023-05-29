@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
+import '../export_manager.dart';
 import '../Models/keywords_model.dart';
 import '../http.dart';
 
@@ -70,16 +70,7 @@ class _KeywordsChartState extends State<KeywordsChart> {
                       final Uint8List imageBytes = bytes!.buffer.asUint8List(
                           bytes.offsetInBytes, bytes.lengthInBytes);
 
-                      // Create a blob with the image data
-                      final blob = html.Blob([imageBytes], 'image/png');
-
-                      // Create an anchor element and simulate a click to download the image
-                      html.AnchorElement()
-                        ..href =
-                            html.Url.createObjectUrlFromBlob(blob).toString()
-                        ..download = 'KeyWords_Extraction_Chart.png'
-                        ..style.display = 'none'
-                        ..click();
+                      exportKeywordsChart(imageBytes);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
@@ -94,7 +85,9 @@ class _KeywordsChartState extends State<KeywordsChart> {
           } else if (snapshot.hasError) {
             return Container(
                 margin: const EdgeInsets.fromLTRB(50, 0, 50, 25),
-                child: Text('Failed to load Keywords\n ${snapshot.error}'));
+                child: Text(
+                    textAlign: TextAlign.center,
+                    'Failed to load Keywords\n${snapshot.error}'));
           } else {
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 50, vertical: 100),

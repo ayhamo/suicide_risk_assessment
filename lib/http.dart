@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:ui' as ui;
-import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -8,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 import 'package:suicide_risk_assessment/models/prediction_model.dart';
 
+import 'export_manager.dart';
 import 'Models/keywords_model.dart';
 
 const baseUrl = 'http://127.0.0.1:5000/';
@@ -99,23 +98,8 @@ Widget getKeywordsWordcloud() {
                         ?.findRenderObject()) as RenderImage?;
 
                     if (image != null) {
-                      // Get the image data
-                      final bytes = await image.image
-                          ?.toByteData(format: ui.ImageByteFormat.png);
-                      final buffer = bytes?.buffer.asUint8List();
-
-                      if (buffer != null) {
-                        // Create a blob with the image data
-                        final blob = html.Blob([buffer], 'image/png');
-
-                        // Create an anchor element and simulate a click to download the image
-                        html.AnchorElement()
-                          ..href =
-                              html.Url.createObjectUrlFromBlob(blob).toString()
-                          ..download = 'WordCloud.png'
-                          ..style.display = 'none'
-                          ..click();
-                      }
+                      //just a check, but the image will always exist if button appears
+                      exportImage(image, "WordCloud");
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -135,7 +119,8 @@ Widget getKeywordsWordcloud() {
       errorWidget: (context, url, error) => Container(
           margin: const EdgeInsets.symmetric(vertical: 30),
           child: const Text(
-              'Failed to load Word Cloud\n   [object ProgressEvent]')));
+              textAlign: TextAlign.center,
+              'Failed to load Word Cloud\n[object ProgressEvent]')));
 }
 
 final GlobalKey _occurrenceMatrixImageKey = GlobalKey();
@@ -163,23 +148,8 @@ Widget getOccurrences() {
                         ?.findRenderObject()) as RenderImage?;
 
                     if (image != null) {
-                      // Get the image data
-                      final bytes = await image.image
-                          ?.toByteData(format: ui.ImageByteFormat.png);
-                      final buffer = bytes?.buffer.asUint8List();
-
-                      if (buffer != null) {
-                        // Create a blob with the image data
-                        final blob = html.Blob([buffer], 'image/png');
-
-                        // Create an anchor element and simulate a click to download the image
-                        html.AnchorElement()
-                          ..href =
-                              html.Url.createObjectUrlFromBlob(blob).toString()
-                          ..download = 'Occurrence_Matrix.png'
-                          ..style.display = 'none'
-                          ..click();
-                      }
+                      //just a check, but the image will always exist if button appears
+                      exportImage(image, "Occurrence_Matrix");
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -199,7 +169,8 @@ Widget getOccurrences() {
       errorWidget: (context, url, error) => Container(
           margin: const EdgeInsets.symmetric(vertical: 70),
           child: const Text(
-              'Failed to load Occurrence Matrix\n           [object ProgressEvent]')));
+              textAlign: TextAlign.center,
+              'Failed to load Occurrence Matrix\n[object ProgressEvent]')));
 }
 
 RenderObject? findRenderImage(RenderObject? object) {

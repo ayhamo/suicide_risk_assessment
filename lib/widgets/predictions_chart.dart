@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:suicide_risk_assessment/widgets/utils.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../http.dart';
@@ -110,7 +111,7 @@ class _PredictionsChartState extends State<PredictionsChart> {
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            widget.arrData!.suicideRisk,
+                            widget.arrData!.suicideRisk.toTitleCase(),
                             style: const TextStyle(
                                 color: Colors.blue,
                                 fontSize: 30,
@@ -133,7 +134,7 @@ class _PredictionsChartState extends State<PredictionsChart> {
                                         .reduce(
                                             (a, b) => a.value > b.value ? a : b)
                                         .key ==
-                                    'Pos'
+                                    'pos'
                                 ? 'Positive'
                                 : 'Negative',
                             style: const TextStyle(
@@ -315,7 +316,7 @@ class _PredictionsChartState extends State<PredictionsChart> {
                                                 .reduce((a, b) =>
                                                     a.value > b.value ? a : b)
                                                 .key ==
-                                            'Pos'
+                                            'pos'
                                         ? 'Positive'
                                         : 'Negative',
                                     style: const TextStyle(
@@ -433,7 +434,8 @@ class _PredictionsChartState extends State<PredictionsChart> {
                 margin: const EdgeInsets.only(top: 40),
                 height: 70,
                 child: Text(
-                  'Server Error have occurred\n    ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  'Server Error have occurred\n${snapshot.error}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               );
