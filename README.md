@@ -1,8 +1,6 @@
 # Suicide Risk Assessment Program
 
-suicide risk assessment  using A.I to assess given text and give predictions
-
-
+suicide risk assessment using A.I. to assess given text and give predictions
 and represent the predictions in an appropriate charts and formats
 
 
