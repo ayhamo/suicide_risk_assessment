@@ -1,0 +1,11 @@
+flask
+flask-cors
+python-dotenv
+openpyxl
+tensorflow
+transformers
+keras
+keras-preprocessing
+scikit-learn
+seaborn
+wordcloud
